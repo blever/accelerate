@@ -292,12 +292,18 @@ freeArray'
   => AD.ArrayData e     -- host array
   -> CIO ()
 
-freeArray' ad = go . modL refcount (fmap (subtract 1)) =<< lookupArray ad
-  where
-    go v = case getL refcount v of
-      Nothing        -> return ()
-      Just x | x > 0 -> updateArray ad v
-      _              -> deleteArray ad
+freeArray' ad = do
+  t <- getM memoryTable
+  x <- liftIO $ Hash.lookup t (arrayToKey ad)
+  if (isNothing x) then do
+    return ()
+    else do
+      ref <- lookupArray 301 ad 
+      let go v = case getL refcount v of
+            Nothing        -> return ()
+            Just x | x > 0 -> updateArray ad v
+            _              -> deleteArray ad
+      go $ modL refcount (fmap (subtract 1)) ref
 
 
 -- Array indexing
@@ -344,7 +350,7 @@ peekArray' ad n =
   let dst = AD.ptrsOfArrayData ad
       src = CUDA.wordPtrToDevPtr . getL arena
   in
-  lookupArray ad >>= \me -> liftIO $ CUDA.peekArray n (src me) dst
+  lookupArray 353 ad >>= \me -> liftIO $ CUDA.peekArray n (src me) dst
 
 peekArrayAsync'
   :: (AD.ArrayPtrs e ~ Ptr a, Storable a, AD.ArrayElt e)
@@ -357,7 +363,7 @@ peekArrayAsync' ad n st =
   let dst = CUDA.HostPtr . AD.ptrsOfArrayData
       src = CUDA.wordPtrToDevPtr . getL arena
   in
-  lookupArray ad >>= \me -> liftIO $ CUDA.peekArrayAsync n (src me) (dst ad) st
+  lookupArray 366 ad >>= \me -> liftIO $ CUDA.peekArrayAsync n (src me) (dst ad) st
 
 
 -- Copy data from an Accelerate array to the associated device array. The data
@@ -370,7 +376,7 @@ pokeArray'
   -> Int                -- number of elements
   -> CIO ()
 
-pokeArray' ad n = go . modL refcount (fmap (+1)) =<< lookupArray ad
+pokeArray' ad n = go . modL refcount (fmap (+1)) =<< lookupArray 379 ad
   where
     src  = AD.ptrsOfArrayData
     dst  = CUDA.wordPtrToDevPtr . getL arena
@@ -388,7 +394,7 @@ pokeArrayAsync'
   -> Maybe CUDA.Stream  -- asynchronous stream to associate (optional)
   -> CIO ()
 
-pokeArrayAsync' ad n st = go . modL refcount (fmap (+1)) =<< lookupArray ad
+pokeArrayAsync' ad n st = go . modL refcount (fmap (+1)) =<< lookupArray 397 ad
   where
     src  = CUDA.HostPtr . AD.ptrsOfArrayData
     dst  = CUDA.wordPtrToDevPtr . getL arena
@@ -436,7 +442,14 @@ basicModify'
   -> (MemoryEntry -> MemoryEntry)
   -> CIO ()
 
-basicModify' ad f = updateArray ad . f =<< lookupArray ad
+basicModify' ad f = do  
+  t <- getM memoryTable
+  x <- liftIO $ Hash.lookup t (arrayToKey ad)
+  if (isNothing x) then do
+    liftIO $ print "WARNING: Attempted to modify refcount on freed array!"
+    return ()
+    else do 
+        updateArray ad . f =<< lookupArray 445 ad
 
 
 -- Utilities
@@ -458,14 +471,14 @@ arrayToKey = ptrToWordPtr . AD.ptrsOfArrayData
 -- Retrieve the device memory entry from the state structure associated with a
 -- particular Accelerate array.
 --
-lookupArray :: (AD.ArrayPtrs e ~ Ptr a, AD.ArrayElt e) => AD.ArrayData e -> CIO MemoryEntry
+lookupArray :: (AD.ArrayPtrs e ~ Ptr a, AD.ArrayElt e) => Int -> AD.ArrayData e -> CIO MemoryEntry
 {-# INLINE lookupArray #-}
-lookupArray ad = do
+lookupArray line ad = do
   t <- getM memoryTable
   x <- liftIO $ Hash.lookup t (arrayToKey ad)
   case x of
        Just e -> return e
-       _      -> INTERNAL_ERROR(error) "lookupArray" "lost device memory reference"
+       _      -> INTERNAL_ERROR(error) "lookupArray" (show line ++ " - lost device memory reference")
                  -- TLM: better if the file/line markings are of the use site
 
 -- Update (or insert) a memory entry into the state structure
@@ -492,7 +505,7 @@ deleteArray ad = do
 --
 getArray :: (AD.ArrayPtrs e ~ Ptr a, AD.ArrayElt e) => AD.ArrayData e -> CIO (CUDA.DevicePtr a)
 {-# INLINE getArray #-}
-getArray ad = CUDA.wordPtrToDevPtr . getL arena <$> lookupArray ad
+getArray ad = CUDA.wordPtrToDevPtr . getL arena <$> lookupArray 501 ad
 
 -- Array tuple extraction
 --

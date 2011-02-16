@@ -164,7 +164,8 @@ Library
 
   Exposed-modules:      Data.Array.Accelerate
                         Data.Array.Accelerate.Interpreter
-
+                        Data.Array.Accelerate.Array.Sugar
+                        Data.Array.Accelerate.Array.Data
 --  If flag(llvm)
 --    Exposed-modules:    Data.Array.Accelerate.LLVM
 
@@ -180,10 +181,8 @@ Library
                         Data.Array.Accelerate.Test.QuickCheck.Arbitrary
 
   Other-modules:        Data.Array.Accelerate.Internal.Check
-                        Data.Array.Accelerate.Array.Data
                         Data.Array.Accelerate.Array.Delayed
                         Data.Array.Accelerate.Array.Representation
-                        Data.Array.Accelerate.Array.Sugar
                         Data.Array.Accelerate.Analysis.Type
                         Data.Array.Accelerate.Analysis.Shape
                         Data.Array.Accelerate.AST

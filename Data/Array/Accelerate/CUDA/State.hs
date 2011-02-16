@@ -17,7 +17,7 @@ module Data.Array.Accelerate.CUDA.State
   (
     evalCUDA, runCUDA, runCUDAWith, CIO, CUDAState, StableAccName(..),
     unique, outputDir, deviceProps, deviceContext,
-    memoryTable, kernelTable, computeTable,
+    memoryTable, kernelTable, computeTable, avarTexture, avarShape,
     cleanup,
 
     MemoryEntry(MemoryEntry), refcount, memsize, arena,
@@ -71,7 +71,6 @@ type MemoryTable  = HashTable WordPtr MemoryEntry
 type KernelTable  = HashTable String  KernelEntry
 type ComputeTable = HashTable StableAccName AccEntry
 
-
 -- | The state token for accelerated CUDA array operations
 --
 type CIO       = StateT CUDAState IO
@@ -83,7 +82,9 @@ data CUDAState = CUDAState
     _deviceContext :: CUDA.Context,
     _memoryTable   :: MemoryTable,
     _kernelTable   :: KernelTable,
-    _computeTable  :: ComputeTable
+    _computeTable  :: ComputeTable,
+    _avarTexture   :: [Int],
+    _avarShape     :: [Int]
   }
 
 -- | Associate an array expression with an external compilation tool (nvcc) or
@@ -207,7 +208,7 @@ initialise = do
   mem     <- Hash.new (==) fromIntegral
   (knl,n) <- loadIndexFile (dir </> "_index")
   addFinalizer ctx (CUDA.destroy ctx)
-  return $ CUDAState n dir prp ctx mem knl undefined
+  return $ CUDAState n dir prp ctx mem knl undefined [] []
 
 
 sanitise :: CUDAState -> IO CUDAState

@@ -69,7 +69,10 @@ module Data.Array.Accelerate.AST (
   Idx(..),
 
   -- * Valuation environment
-  Val(..), prj,
+  Val(..), prj, 
+
+  -- * de Bruijn conversion
+  deBruijnToInt, 
 
   -- * Accelerated array expressions
   Arrays(..), ArraysR(..), OpenAfun(..), Afun, OpenAcc(..), Acc, Stencil(..), StencilR(..),
@@ -114,7 +117,6 @@ data Val env where
 
 deriving instance Typeable1 Val
 
-
 -- Projection of a value from a valuation using a de Bruijn index
 --
 prj :: Idx env t -> Val env -> t
@@ -122,6 +124,11 @@ prj ZeroIdx       (Push _   v) = v
 prj (SuccIdx idx) (Push val _) = prj idx val
 prj _             _            = INTERNAL_ERROR(error) "prj" "inconsistent valuation"
 
+-- de Bruijn Index to Int conversion
+--
+deBruijnToInt :: Idx env t -> Int
+deBruijnToInt ZeroIdx       = 0
+deBruijnToInt (SuccIdx idx) = 1 + deBruijnToInt idx
 
 -- Array expressions
 -- -----------------
