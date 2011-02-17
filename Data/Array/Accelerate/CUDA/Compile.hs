@@ -74,7 +74,7 @@ compileAcc' iss = travA k
 -- apply the given function to.
 --
 travA :: (forall a' aenv'. OpenAcc aenv' a' -> CIO ()) -> OpenAcc aenv a -> CIO ()
-travA _ (Avar _)                 = return ()
+travA _ (Avar _ _)               = return ()
 travA f (Let a b)                = travA f a >> travA f b
 travA f (Let2 a b)               = travA f a >> travA f b
 travA f (Unit e)                 = travE f e

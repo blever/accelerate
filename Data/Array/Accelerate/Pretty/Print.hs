@@ -43,7 +43,7 @@ prettyAcc alvl (Let2 acc1 acc2)
             prettyAcc alvl acc1
         , text "in" <+> prettyAcc (alvl + 2) acc2
         ]
-prettyAcc alvl (Avar idx)
+prettyAcc alvl (Avar idx _)
   = text $ "a" ++ show (alvl - idxToInt idx - 1)
 prettyAcc _   (Use arr)
   = prettyArrOp "use" [prettyArray arr]
@@ -121,7 +121,7 @@ prettyArrOp name docs = hang (text name) 2 $ sep docs
 -- Wrap into parenthesis
 --
 prettyAccParens :: Int -> OpenAcc aenv a -> Doc
-prettyAccParens lvl acc@(Avar _) = prettyAcc lvl acc
+prettyAccParens lvl acc@(Avar _ _) = prettyAcc lvl acc
 prettyAccParens lvl acc          = parens (prettyAcc lvl acc)
 
 -- Pretty print a function over scalar expressions.

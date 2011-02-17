@@ -276,7 +276,7 @@ convertSharingAcc :: Arrays a
                   -> AST.OpenAcc aenv a
 convertSharingAcc alyt env (VarSharing sa)
   | Just i <- findIndex (matchStableAcc sa) env 
-  = AST.Avar (prjIdx i alyt)
+  = AST.Avar (prjIdx i alyt) (hashStableName sa)
   | otherwise                                   
   = INTERNAL_ERROR(error) "convertSharingAcc (prjIdx)" err
   where
@@ -288,11 +288,11 @@ convertSharingAcc alyt env (LetSharing sa@(StableSharingAcc _ boundAcc) bodyAcc)
 convertSharingAcc alyt env (AccSharing _ preAcc)
   = case preAcc of
       Atag i
-        -> AST.Avar (prjIdx i alyt)
+        -> AST.Avar (prjIdx i alyt) undefined
       FstArray acc
-        -> AST.Let2 (convertSharingAcc alyt env acc) (AST.Avar (AST.SuccIdx AST.ZeroIdx))
+        -> AST.Let2 (convertSharingAcc alyt env acc) (AST.Avar (AST.SuccIdx AST.ZeroIdx) undefined)
       SndArray acc
-        -> AST.Let2 (convertSharingAcc alyt env acc) (AST.Avar AST.ZeroIdx)
+        -> AST.Let2 (convertSharingAcc alyt env acc) (AST.Avar AST.ZeroIdx undefined)
       Use array
         -> AST.Use array
       Unit e

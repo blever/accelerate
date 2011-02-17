@@ -50,7 +50,7 @@ accType :: forall aenv sh e.
            OpenAcc aenv (Array sh e) -> TupleType (EltRepr e)
 accType (Let _ acc)           = accType acc
 accType (Let2 _ acc)          = accType acc
-accType (Avar _)              = -- eltType (undefined::e)   -- should work - GHC 6.12 bug?
+accType (Avar _ _)            = -- eltType (undefined::e)   -- should work - GHC 6.12 bug?
                                 case arrays :: ArraysR (Array sh e) of 
                                   ArraysRarray -> eltType (undefined::e)
 accType (Use arr)             = arrayType arr
@@ -81,7 +81,7 @@ accType2 :: forall aenv sh1 e1 sh2 e2. OpenAcc aenv (Array sh1 e1, Array sh2 e2)
          -> (TupleType (EltRepr e1), TupleType (EltRepr e2))
 accType2 (Let _ acc)      = accType2 acc
 accType2 (Let2 _ acc)     = accType2 acc
-accType2 (Avar _)         = -- (eltType (undefined::e1), eltType (undefined::e2))
+accType2 (Avar _ _)       = -- (eltType (undefined::e1), eltType (undefined::e2))
                             -- should work - GHC 6.12 bug?
                             case arrays :: ArraysR (Array sh1 e1, Array sh2 e2) of 
                               ArraysRpair ArraysRarray ArraysRarray 

@@ -89,7 +89,7 @@ executeOpenAcc :: Typeable aenv => OpenAcc aenv a -> Val aenv -> CIO a
 executeOpenAcc (Use a)    _    = return a
 
 ---- (2) Non-skeleton nodes ----
-executeOpenAcc (Avar ix)  aenv = return (prj ix aenv)
+executeOpenAcc (Avar ix _)  aenv = return (prj ix aenv)
 
 executeOpenAcc (Let  x y) aenv = do
   a0  <- executeOpenAcc x aenv
@@ -168,7 +168,6 @@ executeOpenAcc acc@(Permute _ a0 _ a1) aenv = do
   (Array sh1 in1) <- executeOpenAcc a1 aenv     -- permuted array
   r@(Array _ out) <- newArray (Sugar.toElt sh0)
   copyArray in0 out (size sh0)
-  liftIO $ putStrLn "Executing permute now ..."
   execute "permute" acc aenv (size sh0) (((((),out),in1),convertIx sh0),convertIx sh1)
   freeArray in0
   freeArray in1
@@ -472,7 +471,7 @@ data Lifted where
 liftAcc :: forall a aenv. Typeable aenv => OpenAcc aenv a -> Val aenv -> CIO [Lifted]
 liftAcc (Let _ _)            _    = INTERNAL_ERROR(error) "liftAcc" "let-binding?"
 liftAcc (Let2 _ _)           _    = INTERNAL_ERROR(error) "liftAcc" "let-binding?"
-liftAcc (Avar _)             _    = return []
+liftAcc (Avar _ _)           _    = return []
 liftAcc (Use _)              _    = return []
 liftAcc (Unit _)             _    = return []
 liftAcc (Reshape _ _)        _    = return []
@@ -518,31 +517,29 @@ liftExp (IndexTail ix)    aenv = liftExp ix aenv
 liftExp (PrimApp _ e)     aenv = liftExp e aenv
 liftExp (Cond p t e)      aenv = concatM [liftExp p aenv, liftExp t aenv, liftExp e aenv]
 
-liftExp (Shape a@(Avar ix))         aenv = do
-  let index = deBruijnToInt ix
+liftExp (Shape a@(Avar _ ref))        aenv = do
   (Array sh _) <- executeOpenAcc a aenv
   tab <- getM avarShape
-  if (foldl (\a e -> a || (index == e)) False tab)
+  if (foldl (\a e -> a || (ref == e)) False tab)
     then do 
       return []
     else do 
-      modM avarShape (index:) 
+      modM avarShape (ref:) 
       return [FreeShape sh]
 
 liftExp (Shape a)         aenv = do
   (Array sh _) <- executeOpenAcc a aenv
   return [FreeShape sh]
 
-liftExp (IndexScalar a@(Avar ix) e) aenv = do
-  let index = deBruijnToInt ix
+liftExp (IndexScalar a@(Avar _ ref) e) aenv = do
   vs               <- liftExp e aenv
   arr@(Array sh _) <- executeOpenAcc a aenv
   tab <- getM avarTexture
-  if (foldl (\a e -> a || (index == e)) False tab)
+  if (foldl (\a e -> a || (ref == e)) False tab)
     then do 
       return $ vs
     else do 
-      modM avarTexture (index:) 
+      modM avarTexture (ref:) 
       return $ vs ++ [FreeArray arr, FreeShape sh]
    
 liftExp (IndexScalar a e) aenv = do
@@ -562,12 +559,8 @@ bindLifted mdl = -- do
                     foldM_ go (0,0)
   where
     go :: (Int,Int) -> Lifted -> CIO (Int,Int)
-    go (n,m) (FreeShape sh)            = do 
-                                            liftIO $ putStrLn ("bind shape: " ++ (show n))
-                                            bindDim n sh    >>  return (n+1,m)
-    go (n,m) (FreeArray (Array sh ad)) = do
-                                            liftIO $ putStrLn ("bind texture: " ++ (show m))
-                                            bindTex m sh ad >>= \m' -> return (n,m+m')
+    go (n,m) (FreeShape sh)            = bindDim n sh    >>  return (n+1,m)
+    go (n,m) (FreeArray (Array sh ad)) = bindTex m sh ad >>= \m' -> return (n,m+m')
 
     -- toText :: Lifted -> String
     -- toText (FreeShape sh)            = "FreeShape "

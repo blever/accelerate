@@ -23,7 +23,7 @@ import Data.Array.Accelerate.Array.Sugar
 accDim :: forall aenv sh e. OpenAcc aenv (Array sh e) -> Int
 accDim (Let _ acc)            = accDim acc
 accDim (Let2 _ acc)           = accDim acc
-accDim (Avar _)               = -- ndim (eltType (undefined::sh))   -- should work - GHC 6.12 bug?
+accDim (Avar _ _)             = -- ndim (eltType (undefined::sh))   -- should work - GHC 6.12 bug?
                                 case arrays :: ArraysR (Array sh e) of 
                                   ArraysRarray -> ndim (eltType (undefined::sh))
 accDim (Use (Array _ _))      = ndim (eltType (undefined::sh))
@@ -53,7 +53,7 @@ accDim (Stencil2 _ _ acc _ _) = accDim acc
 accDim2 :: forall aenv sh1 e1 sh2 e2. OpenAcc aenv (Array sh1 e1, Array sh2 e2) -> (Int, Int)
 accDim2 (Let _ acc)      = accDim2 acc
 accDim2 (Let2 _ acc)     = accDim2 acc
-accDim2 (Avar _)         = -- (ndim (eltType (undefined::dim1)), ndim (eltType (undefined::dim2)))
+accDim2 (Avar _ _)       = -- (ndim (eltType (undefined::dim1)), ndim (eltType (undefined::dim2)))
                            -- should work - GHC 6.12 bug?
                             case arrays :: ArraysR (Array sh1 e1, Array sh2 e2) of 
                               ArraysRpair ArraysRarray ArraysRarray 

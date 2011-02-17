@@ -43,6 +43,8 @@ import Data.Array.Accelerate.CUDA.CodeGen.Util
 import Data.Array.Accelerate.CUDA.CodeGen.Skeleton
 import Data.Array.Accelerate.CUDA.Analysis.Stencil              as Stencil
 
+import System.Mem.StableName
+import System.IO.Unsafe
 
 #include "accelerate.h"
 
@@ -238,13 +240,13 @@ codeGenExp (Var i) =
 codeGenExp (Cond p t e) =
   zipWith . (\[a] b c -> CCond a (Just b) c internalNode) <$> codeGenExp p <*> codeGenExp t <*> codeGenExp e
 
-codeGenExp (Shape a@(Avar ind)) = do
-  ent <- Map.lookup (deBruijnToInt ind) <$> getM avarShape
+codeGenExp (Shape a@(Avar _ ref)) = do
+  ent <- Map.lookup ref <$> getM avarShape
   if (isNothing ent) 
     then do
       s <- length <$> getM shapes
       let sh = "sh" ++ (show s)
-      modM avarShape (Map.insert (deBruijnToInt ind) s)
+      modM avarShape (Map.insert ref s)
       modM shapes (mkShape (accDim a) sh :)
       return [cvar sh]
     else do
@@ -259,14 +261,14 @@ codeGenExp (Size a) = do
   sh <- codeGenExp (Shape a)
   return [ccall "size" sh]
 
-codeGenExp (IndexScalar a@(Avar ind) e) = do
+codeGenExp (IndexScalar a@(Avar _ ref) e) = do
   ix <- codeGenExp e
-  ent <- Map.lookup (deBruijnToInt ind) <$> getM avarTexture
+  ent <- Map.lookup ref <$> getM avarTexture
   if (isNothing ent) 
     then do
       n <- length <$> getM arrays
       s <- length <$> getM shapes
-      modM avarTexture (Map.insert (deBruijnToInt ind) (s,n))
+      modM avarTexture (Map.insert ref (s,n))
       codeGenIndexScalar a e n s ix True
     else do
       codeGenIndexScalar a e (snd $ fromJust ent) (fst $ fromJust ent) ix False

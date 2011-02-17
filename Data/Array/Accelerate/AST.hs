@@ -201,6 +201,7 @@ data OpenAcc aenv a where
   -- Variable bound by a 'Let', represented by a de Bruijn index              
   Avar        :: Arrays arrs
               => Idx     aenv arrs
+              -> Int
               -> OpenAcc aenv arrs
   
   -- Array inlet (triggers async host->device transfer if necessary)
